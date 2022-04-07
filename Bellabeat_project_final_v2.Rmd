@@ -1,0 +1,326 @@
+---
+title: "Bellabeat_project_final_v2"
+author: "Anna da Silva"
+date: '2022-03-10'
+output: pdf_document
+---
+# Capstone project: Bellabeat Fitness Tracker
+
+You are a junior data analyst working on the marketing analyst team at Bellabeat, a high-tech manufacturer of health-focused products for women. Bellabeat is a successful small company, but they have the potential to become a larger player in the
+global smart device market. Urška Sršen, co founder and Chief Creative Officer of Bellabeat, believes that analyzing smart device fitness data could help unlock new growth opportunities for the company. You have been asked to focus on one of Bellabeat’s products and analyze smart device data to gain insight into how consumers are using their smart devices. The insights you discover will then help guide marketing strategy for the company. You will present your analysis to the Bellabeat executive team along with your high-level recommendations for Bellabeat’s marketing strategy.
+
+Mission: get to know the possible future consumers
+
+### Loading the datasets
+
+```{r import data}
+sleep_day <- read.csv("/Users/anna/project/sleepDay_merged.csv")
+weight_log <- read.csv("/Users/anna/project/weightLogInfo_merged.csv")
+daily_activity <- read.csv("/Users/anna/project/dailyActivity_merged.csv")
+```
+
+### Taking a look at the data
+
+```{r}
+n_distinct(sleep_day$Id)
+n_distinct(weight_log$Id)
+n_distinct(daily_activity$Id)
+```
+
+
+```{r}
+nrow(sleep_day)
+nrow(weight_log)
+nrow(daily_activity)
+```
+
+```{r}
+head(sleep_day)
+head(weight_log)
+head(daily_activity)
+```
+```{r}
+View(sleep_day)
+```
+
+
+### Procesing data
+
+
+Starting with sleep data
+
+*Remove duplicate values 
+```{r}
+sum(duplicated(sleep_day))
+```
+* Remove missing values
+```{r}
+sum(is.na(sleep_day))
+```
+
+3 duplicated values, 0 missing
+
+*Rename column for easier reading and format the data type
+```{r}
+sleep <- sleep_day %>% 
+  separate(SleepDay, into = c("Date","Time"), sep = " ", remove = TRUE)
+sleep$Date <- as.Date(sleep$Date, format = '%m/%d/%Y')
+```
+* Creating new columns to facilitate viz.
+```{r}
+sleep$Weekday <- wday(sleep$Date, label = TRUE, abbr = FALSE)
+```
+* Checking
+```{r}
+str(sleep)
+View(sleep)
+```
+Next, weight:
+
+*Remove duplicate values
+```{r}
+sum(duplicated(weight_log))
+```
+*Remove missing values - only 2 fat values logged, be careful
+```{r}
+sum(is.na(weight_log$WeightKg))
+```
+
+0 duplicates and 0 missing values
+
+*Format Date column, like on previous table
+```{r}
+weight <- weight_log %>% 
+  separate(Date, into = c("Date", "Time"), sep = " ", remove = TRUE) 
+weight$Date <- as.Date(weight$Date, format = '%m/%d/%Y')
+weight$Weekday <- wday(weight$Date, label = TRUE, abbr = FALSE)
+```
+*Checking:
+```{r}
+str(weight)
+View(weight)
+```
+
+Last one, daily activity:
+
+*Remove duplicated values
+```{r}
+sum(duplicated(daily_activity))
+```
+*Remove missing values
+```{r}
+sum(is.na(daily_activity))
+```
+
+0 duplicated values and 0 missing values
+
+*Reformatting date column
+```{r}
+colnames(daily_activity)[colnames(daily_activity) == "ActivityDate"] <- "Date"
+daily_activity$Date <- as.Date(daily_activity$Date, format = '%m/%d/%Y')
+daily_activity$Weekday <- wday(daily_activity$Date, label = TRUE, abbr = FALSE)
+```
+*New column for total active time
+```{r}
+daily_activity2 <- daily_activity %>% 
+  mutate(TotalActiveMinutes = VeryActiveMinutes + FairlyActiveMinutes + LightlyActiveMinutes)
+```
+*Checking:
+```{r}
+str(daily_activity2)
+View(daily_activity2)
+```
+
+Combine the cleaned date into one set with ID and Date in common
+
+```{r}
+merged_final_df <- merge(merge(daily_activity2, sleep, by = c('Id', 'Date'), all = TRUE), weight, by = c('Id', 'Date'), all = TRUE)
+str(merged_final_df)
+summary(merged_final_df)
+```
+
+## Summarize the cleaned data
+
+#### Sleep
+```{r}
+sleep %>% 
+  select(TotalSleepRecords, TotalMinutesAsleep, TotalTimeInBed) %>% 
+  summary()
+```
+```{r}
+table(sleep$TotalMinutesAsleep < 420)
+```
+
+
+#### Weight
+```{r}
+weight %>% 
+  select(WeightKg, BMI, IsManualReport) %>% 
+  summary()
+```
+```{r echo=TRUE}
+table(weight$IsManualReport == "True")
+```
+
+
+#### Daily Activity
+```{r}
+daily_activity2 %>% 
+  select(TotalSteps, TotalDistance, VeryActiveMinutes, FairlyActiveMinutes, LightlyActiveMinutes, SedentaryMinutes, TotalActiveMinutes) %>% 
+  summary()
+```
+
+
+## Preliminary conclusions
+
+Looking at the data on sleep, the average amount of time the users are getting comes to around 7.21 hours. Still, 182 out of 413 nights logged were under the recommended sleep time. The Sleep Foundation recommends 7 to 9 hours of sleep for an adult.
+By the weight data, we can see that the average weight of the users that chose to log/share their weight is 62.5kg. Therefore, most users are probably women given that the average weight for women is 77kg and men is 89.3kg. Also most users are logging their weight manually
+The data on the daily activity suggests that most users are not highly active or even active people, therefore are not athletes. According to the government of Australia 
+* Sedentary is less than 5,000 steps per day 
+* Low active is 5,000 to 7,499 steps per day
+* Somewhat active is 7,500 to 9,999 steps per day
+* Active is more than 10,000 steps per day
+* Highly active is more than 12,500 
+The average total steps of Fit bit users is 7406, which means low active.
+Also, the average for very or fairly active minutes  is around half an hour, which really points us towards concluding the users are not professional athletes.
+
+## Hypothesis
+
+The Bellabeat Time could implement an alarm to ring 8 hours after the user fell asleep and send push notifications through the app to remind the user to go to bed earlier when they slept less than 7 hours on the previous night.
+On the weight table we noticed that most users are logging their weight manually, so maybe the Bellabeat product should make it easier to log the weight automatically.
+The Bellabeat app can also send notifications to remind the user to walk around every hour so they can achieve the daily 10,000 steps recommended by the Center for Disease Control and Prevention for an active adult.
+
+## Visualization
+
+```{r}
+weight_method_log <- c("Manual Report","Auto Report")
+weight_method_log_T_F <- c(length(which(weight$IsManualReport == "True")),length(which(weight$IsManualReport =="False")))
+manual_log_or_not <- data.frame(weight_method_log,weight_method_log_T_F)
+```
+
+```{r}
+ggplot(manual_log_or_not, aes(weight_method_log, weight_method_log_T_F))+
+  geom_bar(stat = "identity", fill = "pink")+
+  geom_text(aes(label = weight_method_log_T_F), vjust = 3, color = "darkBlue", size = 5)+
+  labs(title = "Weight Log Methods by Type", subtitle = "Smart Devices", x = "Weight Log Methods", y = "Total Number of Records" )
+```
+
+It could be that there is only 8 users that logged the weight because of how practical it might be
+
+```{r}
+merged_final_df %>% 
+  group_by(TotalSteps, Calories) %>% 
+  ggplot(aes(x = TotalSteps, y = Calories, color = Calories))+
+  geom_point()+
+  geom_smooth(color = "pink")+
+  theme_minimal()+
+  theme(panel.border = element_rect(color = "black", fill = NA),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(color = "black"))+
+  labs(title = "Calories Burned vs. Total Steps", x = "Calories", y = "Total Steps")
+```
+
+```{r}
+cor.test(merged_final_df$TotalSteps, merged_final_df$Calories, method = 'pearson', conf.level = 0.95)
+```
+
+There's a strong positive correlation between steps taken and calories burned
+
+```{r}
+daily_activity2 %>% 
+  select(VeryActiveMinutes, FairlyActiveMinutes, LightlyActiveMinutes, SedentaryMinutes) %>% 
+  summarise(across(everything(), list(sum))) %>% 
+  gather(active_level, minutes) %>% 
+  mutate(active_level = factor(active_level, labels = c('Moderate Activity', 'Light Activity', 'Sedentary','Heavy activity'))) %>% 
+  hchart('pie', hcaes(x = active_level, y = minutes, color = active_level)) %>% 
+  hc_title(text = "Daily activity level in minutes") %>% 
+  hc_tooltip(pointFormat = "<b>Value:</b> {point.y} <br> <b>Percentage:</b> {point.percentage:, .2f}%" )
+```
+
+Activity distribution:
+* Sedentary - 81.33%
+* Light Activity - 15.82%
+* Moderate Activity - 1.11%
+* Heavy Activity - 1.74%
+It seems that Fit bit users are not active, so did they buy the device to motivate? or because it was a trend/aesthetics reasons?
+
+```{r}
+sleep %>% 
+  drop_na() %>% 
+  mutate(sleep_quality = ifelse(TotalMinutesAsleep <= 420, 'Less than 7h',
+  ifelse(TotalMinutesAsleep <= 540, '7h to 9h',
+                'More than 9h'))) %>% 
+  mutate(sleep_quality = factor(sleep_quality, levels = c('Less than 7h', '7h to 9h', 'More than 9h'))) %>% 
+  ggplot(aes(x = TotalMinutesAsleep, fill = sleep_quality))+
+  geom_histogram(position = 'dodge', bins = 30) +
+  theme_minimal()+
+  theme(legend.title = element_blank(),
+        legend.spacing.y = unit(0, "mm"),
+        panel.border = element_rect(color = "black", fill = NA),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(color = "darkgrey"))+
+  labs(title = "Sleep Time Distribution", x = "Time Slept (min)", y = "Count")
+```
+
+Most users are following CDC recommendations and getting enough sleep
+
+Is there a relationship between exercise, steps and sleep?
+
+```{r}
+merged_final_df %>% 
+  select(TotalMinutesAsleep, TotalActiveMinutes) %>% 
+  drop_na() %>% 
+  mutate(sleep_quality = ifelse(TotalMinutesAsleep <= 420, 'Less than 7h',
+  ifelse(TotalMinutesAsleep <= 540, '7h to 9h',
+                'More than 9h'))) %>% 
+  mutate(sleep_quality = factor(sleep_quality, levels = c('Less than 7h', '7h to 9h', 'More than 9h'))) %>% 
+ggplot(aes(x = TotalMinutesAsleep, y = TotalActiveMinutes, color = TotalMinutesAsleep))+
+  geom_point()+
+  geom_smooth(color = "pink")+
+  theme_minimal()+
+  theme(panel.border = element_rect(color = "black", fill = NA),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(color = "black"))+
+  labs(title = "Sleep Time vs Active Time", x = "Time Slept (min)", y = "Active Time (min)")
+
+```
+
+```{r}
+cor.test(merged_final_df$TotalActiveMinutes, merged_final_df$TotalMinutesAsleep, method = 'pearson', conf.level = 0.95)
+```
+Small negative correlation, but does the time slept correlates to steps?
+
+```{r echo=TRUE}
+merged_final_df %>% 
+  select(TotalMinutesAsleep, TotalSteps) %>% 
+  drop_na() %>% 
+  mutate(sleep_quality = ifelse(TotalMinutesAsleep <= 420, 'Less than 7h',
+  ifelse(TotalMinutesAsleep <= 540, '7h to 9h',
+                'More than 9h'))) %>% 
+  mutate(sleep_quality = factor(sleep_quality, levels = c('Less than 7h', '7h to 9h', 'More than 9h'))) %>% 
+  ggplot(aes(x = TotalMinutesAsleep, y = TotalSteps, color = TotalMinutesAsleep))+
+  geom_point()+
+  geom_smooth(color = "pink")+
+  theme_minimal()+
+  theme(panel.border = element_rect(color = "black", fill = NA),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(color = "black"))+
+  labs(title = "Sleep Time vs Steps", x = "Time Slept (min)", y = "Step Count")
+
+```
+
+```{r}
+cor.test(merged_final_df$TotalSteps, merged_final_df$TotalMinutesAsleep, method = 'pearson', conf.level = 0.95)
+```
+
+Small negative correlation.
+
+Two different aspects of health to be addressed separately.
+
+## Conclusion
+Bellabeat should focus on developing reminders on the Bellabeat app for when the user slept less than 7 hours, and also to remind users to walk more. 
+The app should also have an efficient and easy way for users to log weight.
+
+```{r include=FALSE}
+write.table(merged_final_df, file="BellaBeat_FitBitTracker.csv", row.names=F, sep = ",")
+```
